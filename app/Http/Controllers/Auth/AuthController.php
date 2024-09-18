@@ -3,14 +3,28 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\AuthRequest;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Requests\LoginRequest;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use Illuminate\Routing\Controllers\Middleware;
 
-class AuthController extends Controller
+
+class AuthController extends Controller implements \Illuminate\Routing\Controllers\HasMiddleware
 {
-    public function login(Request $request)
+    public static function middleware():array
+    {
+        return [
+            new Middleware(middleware:'auth:api',except: ['login']),
+        ];
+    }
+    public function __construct(){
+        $this->middleware();
+    }
+    /**
+     * Summary of login
+     * @param \App\Http\Requests\LoginRequest $request
+     * @return mixed|\Illuminate\Http\JsonResponse
+     */
+    public function login(LoginRequest $request)
     {
         $credentials = $request->only('email', 'password');
         if (!$token = JWTAuth::attempt($credentials)) {

@@ -14,7 +14,7 @@ class AssignTaskRequest extends FormRequest
     public function authorize(): bool
     {
         $user = JWTAuth::parseToken()->authenticate();
-        if($user && $user->hasRole('manager')){
+        if($user && ($user->hasRole('manager') || $user->hasRole('admin'))){
             return true;
         }else{
             abort(401, 'Unauthorized');

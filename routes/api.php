@@ -27,6 +27,8 @@ Route::middleware([ManagerMiddleware::class])->group(function(){
     Route::apiResource('Task',TaskManagementController::class);
     Route::post('Task/forceDelete/{taskID}',[TaskManagementController::class , 'forceDelete']);
     Route::post('Task/RestoreTask/{taskID}',[TaskManagementController::class , 'restore']);
+    Route::get('Task/getSoftDelete',[TaskManagementController::class , 'getSoftDelete']);
+    Route::POST('Task/getAllTaskAssignedToUser',[TaskManagementController::class , 'getAllTaskAssignedToUser']);
 });
 
 //Assigne Task to User (Manager Only)
@@ -39,6 +41,6 @@ Route::post('Task/{TaskId}/changeStatus', [userController::class , 'changeStatus
 Route::get('TaskAssigned',[userController::class,'index']);
 
 // public route
-Route::post('login', [AuthController::class, 'login']);
-Route::post('logout', [AuthController::class, 'logout']);
+Route::post('login', [AuthController::class, 'login'])->name('login');
+Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('me', [AuthController::class, 'me']);

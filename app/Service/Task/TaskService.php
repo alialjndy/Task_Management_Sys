@@ -1,14 +1,10 @@
 <?php
 namespace App\Service\Task;
 
-use App\Http\Requests\Task\AssignTaskRequest;
-use App\Http\Requests\Task\UpdateTaskRequest;
 use App\Models\Task;
 use App\Models\User;
 use Exception;
-use Illuminate\Container\Attributes\Auth;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth as FacadesAuth;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class TaskService{
@@ -66,11 +62,26 @@ class TaskService{
         $user_id = $user->id;
 
         $task = Task::findOrFail($id);
-        if($user_id === $task->manager_id){
-            $updatedTask = $task->update($data);
-            return $updatedTask;
+        // أذا كان الشخص الذي أضاف هذا التاسك هو بدور أدمن
+        if($task->manager->role === 'admin'){
+            // اختبار هل هذا الأدمن الحالي هو نفسه الأدمن الذي أضاف التاسك
+            if($user_id === $task->manager_id){
+                $updatedTask = $task->update($data);
+                return $updatedTask;
+            }else{
+            throw new Exception('Task Updated failed: Unauthorized manager ID');
+            }
+            // اختبار فيما اذا كان الشخص الذي يحاول الحذف هو أدمن وتأكدنا مسبقا أن الشخص الذي أضاف هذه التاسك ليس أدمن
+        }else if ($user->role === 'admin'){
+                $updatedTask = $task->update($data);
+                return $updatedTask;
+                // في حال الشخص الذي يحاول الحذف ليس أدمن بالتالي سوف نختبر أن هذه التاسك تنتمي إليه
+        }else if($task->manager_id === $user_id){
+                $updatedTask = $task->update($data);
+                return $updatedTask;
         }else{
             throw new Exception('Task Updated failed: Unauthorized manager ID');
+
         }
     }
     /**
@@ -80,18 +91,48 @@ class TaskService{
      */
     public function delete(string $id)
     {
+        $user = JWTAuth::parseToken()->authenticate();
+        $user_id = $user->id;
+
         $task = Task::findOrFail($id);
-        $task->delete();
+        // أذا كان الشخص الذي أضاف هذا التاسك هو بدور أدمن
+        if($task->manager->role === 'admin'){
+            // اختبار هل هذا الأدمن الحالي هو نفسه الأدمن الذي أضاف التاسك
+            if($user_id === $task->manager_id){
+                $task->delete();
+            }else{
+            throw new Exception('Task Delete failed: Unauthorized manager ID');
+            }
+            // اختبار فيما اذا كان الشخص الذي يحاول الحذف هو أدمن وتأكدنا مسبقا أن الشخص الذي أضاف هذه التاسك ليس أدمن
+        }else if ($user->role === 'admin'){
+                $task->delete();
+                // في حال الشخص الذي يحاول الحذف ليس أدمن بالتالي سوف نختبر أن هذه التاسك تنتمي إليه
+        }else if($task->manager_id === $user_id){
+                $task->delete();
+        }else{
+            throw new Exception('Task Delete failed: Unauthorized manager ID');
+
+        }
+
+
     }
     /**
      * Summary of restoreTask
      * @param mixed $id
      * @return mixed||\Illuminate\Database\Eloquent\Collection
      */
-    public function restoreTask($id){
-        $restoreTask = Task::withTrashed()->findOrFail($id);
-        $restoreTask->restore();
-        return $restoreTask ;
+    public function restoreTask(string $id){
+        try{
+            $user = JWTAuth::parseToken()->authenticate();
+            $user_id = $user->id ;
+            $restoreTask = Task::withTrashed()->findOrFail($id);
+            if($user_id === $restoreTask->id){
+                $restoreTask->restore();
+                return $restoreTask ;
+            }
+        }catch(Exception $e){
+            throw new exception(403,'You can not restore this task because you are not who delete it');
+        }
     }
     /**
      * Summary of forceDelete
@@ -99,8 +140,17 @@ class TaskService{
      * @return void
      */
     public function forceDelete($id){
-        $task = Task::withTrashed()->findOrFail($id);
-        $task->forceDelete();
+        try{
+            $user = JWTAuth::parseToken()->authenticate();
+            $user_id = $user->id ;
+            $task = Task::withTrashed()->findOrFail($id);
+
+            if($user_id === $task->manager_id){
+                $task->forceDelete();
+            }
+        }catch(Exception $e){
+            throw new exception(403,'You can not delete this task because you are not who create it');
+        }
     }
     /**
      * Summary of assignTask
@@ -110,11 +160,27 @@ class TaskService{
      */
     public function assignTask($user_id , $task_id)
     {
-        // $user_id = $request->user_id ;
-        $task = Task::findOrFail($task_id);
-        $task->to_assigned = $user_id ;
-        $task->status = 'in_progress';
-        $task->save();
+        try{
+            $user = User::findOrFail($user_id);
+            if($user->role === 'admin' || $user->role === 'manager'){
+                throw new Exception('A task cannot be assigned to this person because you have the authority of a manager');
+            }
+            $task = Task::findOrFail($task_id);
+            $task->to_assigned = $user_id ;
+            $task->status = 'in_progress';
+            $task->save();
+        }catch(Exception $e){
+
+        }
+    }
+    public function getSoftDeleteTasks(){
+        $tasks = Task::withTrashed()->get();
+        return $tasks;
+    }
+    public function getAllTaskAssignedToUser($user_id){
+        $user = User::findOrFail($user_id);
+        $tasks = $user->tasks()->get();
+        return $tasks ;
     }
 }
 ?>

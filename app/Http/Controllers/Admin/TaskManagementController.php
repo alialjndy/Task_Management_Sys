@@ -8,6 +8,7 @@ use App\Http\Requests\Task\FilterTaskRequest;
 use App\Http\Requests\Task\TaskRequest;
 use App\Http\Requests\Task\UpdateTaskRequest;
 use App\Models\Task;
+use App\Models\User;
 use App\Service\Task\TaskService;
 use Exception;
 
@@ -159,6 +160,21 @@ class TaskManagementController extends Controller
         return response()->json([
             'status'=>'success',
             'message'=>'Task assigned successfully'
+        ],200);
+    }
+    public function getSoftDelete(){
+        $tasks = $this->taskService->getSoftDeleteTasks();
+        return response()->json([
+            'status'=>'success',
+            'All Soft Deleted Task'=>$tasks
+        ],200);
+    }
+    public function getAllTaskAssignedToUser($user_id){
+        $user = User::findOrFail($user_id);
+        $tasks = $this->taskService->getAllTaskAssignedToUser($user_id);
+        return response()->json([
+            'status'=>'success',
+            'All Task Assigned to '.$user->name. '' => $tasks
         ],200);
     }
 }
